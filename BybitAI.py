@@ -6,6 +6,9 @@ import logging
 from telegram import Bot, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 import os  # for reading environment variables
+from keras.models import Sequential
+from keras.layers import Dense
+from talib import RSI, MACD
 
 # Get Bybit API credentials from environment variables
 bybit_api_key = os.getenv('BYBIT_API_KEY')

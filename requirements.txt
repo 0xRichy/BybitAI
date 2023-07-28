@@ -1,0 +1,7 @@
+bybit
+pandas
+talib
+tensorflow
+keras
+scikit-learn
+numpy

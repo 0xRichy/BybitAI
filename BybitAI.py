@@ -59,7 +59,11 @@ class IndicatorGenerator:
 
 class MachineLearningModel:
     def __init__(self):
-        self.classifier = RandomForestClassifier()
+        self.classifier = Sequential()
+        self.classifier.add(Dense(units = 64, kernel_initializer = 'uniform', activation = 'relu', input_dim = 10))
+        self.classifier.add(Dense(units = 64, kernel_initializer = 'uniform', activation = 'relu'))
+        self.classifier.add(Dense(units = 1, kernel_initializer = 'uniform', activation = 'sigmoid'))
+        self.classifier.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
 
     def create_dataset(self, data, window_size):
         X, y = [], []
@@ -70,11 +74,11 @@ class MachineLearningModel:
         return np.array(X), np.array(y)
 
     def train(self, X, y):
-        self.classifier.fit(X, y)
+        self.classifier.fit(X, y, batch_size = 10, epochs = 100)
         logger.info("Classifier trained successfully")
 
     def predict(self, data):
-        prediction = self.classifier.predict([data])[0]
+        prediction = self.classifier.predict(np.array([data]))[0]
         logger.info(f"Prediction made: {prediction}")
         return prediction
 

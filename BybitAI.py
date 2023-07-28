@@ -168,7 +168,10 @@ def main():
 
                 # Calculate the trade amount in USDT based on available balance and risk percentage
                 risk_amount = (account_balance * risk_percentage) / 100
-                trade_amount = min(risk_amount, account_balance)  # Limit trade amount to available balance
+
+                # Implement dynamic risk management: risk more when confident about a trade and less when not
+                confidence = abs(prediction - 0.5) * 2  # Convert prediction to a confidence score between 0 and 1
+                trade_amount = min(confidence * risk_amount, account_balance)  # Limit trade amount to available balance
 
                 # Log trading signal and trade amount
                 logger.info(f"Signal: {signal}, Trade Amount (USDT): {trade_amount:.2f}")

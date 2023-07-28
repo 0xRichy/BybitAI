@@ -1,73 +1,112 @@
-import bybit
-import pandas as pd
-import talib
-import time
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, LSTM
-from sklearn.preprocessing import MinMaxScaler
+import ccxt
 import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+import time
 
-# Initialize Bybit API
-client = bybit.bybit(test=True, api_key="YOUR_API_KEY", api_secret="YOUR_API_SECRET")
+# Replace these with your Bybit API credentials
+bybit_api_key = 'YOUR_API_KEY'
+bybit_secret_key = 'YOUR_SECRET_KEY'
 
-# Define leverage
-leverage = 50
+# Initialize the Bybit API client for derivatives trading
+bybit_exchange = ccxt.bybit({'apiKey': bybit_api_key, 'secret': bybit_secret_key, 'options': {'defaultType': 'future'}})
 
-# Initialize LSTM model
-model = Sequential()
-model.add(LSTM(units=50, return_sequences=True, input_shape=(60,1)))
-model.add(LSTM(units=50))
-model.add(Dense(1))
-model.compile(loss='mean_squared_error', optimizer='adam')
+# Define function to fetch real-time market data
+def fetch_real_time_data(symbol, timeframe):
+    try:
+        ohlcv = bybit_exchange.fetch_ohlcv(symbol, timeframe, limit=1)
+        return np.array([candle[4] for candle in ohlcv])
+    except Exception as e:
+        print(f"Error fetching data: {e}")
+        return None
 
-# Initialize MinMaxScaler
-scaler = MinMaxScaler()
+# Define function to generate AI indicator
+def generate_ai_indicator(data):
+    # Your AI indicator generation code goes here
+    # For illustration, let's assume a simple moving average
+    return np.mean(data)
 
-# Trading logic
+# Define function to create machine learning dataset
+def create_dataset(data, window_size):
+    X, y = [], []
+    for i in range(len(data) - window_size - 1):
+        window = data[i:i+window_size]
+        X.append(window)
+        y.append(1 if data[i+window_size] > generate_ai_indicator(window) else -1)
+    return np.array(X), np.array(y)
+
+# Define function to place a market order
+def place_market_order(symbol, side, quantity, leverage):
+    try:
+        order = bybit_exchange.create_market_order(symbol, side, quantity, {'leverage': leverage})
+        return order
+    except Exception as e:
+        print(f"Error placing order: {e}")
+        return None
+
+# Define function to get account balance in USDT
+def get_account_balance():
+    try:
+        balance = bybit_exchange.fetch_balance()
+        return balance['USDT']['free']
+    except Exception as e:
+        print(f"Error fetching account balance: {e}")
+        return 0.0
+
+# Fetch real-time data for a specific trading pair and timeframe
+symbol = 'BTC/USDT'  # Use the perpetual BTC/USDT contract
+timeframe = '1m'  # Use a lower timeframe for real-time streaming, '1m' is just an example
+window_size = 10
+
+# Define the leverage for your trades
+leverage = 10  # Replace with your desired leverage
+
+# Define the desired risk percentage (e.g., 2%)
+risk_percentage = 2
+
+# Initialize the Random Forest Classifier
+classifier = RandomForestClassifier()
+
+# Main trading loop
 while True:
-    # Get historical price data
-    data = client.Kline.Kline_get(symbol="BTCUSD", interval="1", limit=500).result()[0]['result']
-    data = pd.DataFrame(data)
-    data['close'] = data['close'].astype(float)
+    try:
+        # Fetch real-time data
+        real_time_data = fetch_real_time_data(symbol, timeframe)
 
-    # Calculate indicators
-    data['macd'], data['macdsignal'], data['macdhist'] = talib.MACD(data['close'], fastperiod=12, slowperiod=26, signalperiod=9)
-    data['rsi'] = talib.RSI(data['close'], timeperiod=14)
-    data['upperband'], data['middleband'], data['lowerband'] = talib.BBANDS(data['close'], timeperiod=5, nbdevup=2, nbdevdn=2, matype=0)
+        if real_time_data is not None:
+            # Generate AI indicator on real-time data
+            ai_indicator = generate_ai_indicator(real_time_data)
 
-    # Prepare data for LSTM model
-    inputs = data['close'].values
-    inputs = inputs.reshape(-1,1)
-    inputs = scaler.fit_transform(inputs)
+            # Create machine learning dataset
+            X, y = create_dataset(real_time_data, window_size)
 
-    X_train = []
-    y_train = []
-    for i in range(60, len(inputs)):
-        X_train.append(inputs[i-60:i, 0])
-        y_train.append(inputs[i, 0])
-    X_train, y_train = np.array(X_train), np.array(y_train)
-    X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
+            # Train the classifier
+            classifier.fit(X, y)
 
-    # Train LSTM model
-    model.fit(X_train, y_train, epochs=1, batch_size=1, verbose=2)
+            # Make prediction for the next data point
+            next_data_point = real_time_data[-window_size:]
+            prediction = classifier.predict([next_data_point])[0]
 
-    # Predict next price
-    X_test = inputs[-60:]
-    X_test = np.reshape(X_test, (1, X_test.shape[0], 1))
-    predicted_price = model.predict(X_test)
-    predicted_price = scaler.inverse_transform(predicted_price)
+            # Define trading signal based on the prediction
+            signal = 'BUY' if prediction == 1 else 'SELL'
 
-    # Check for buy signal
-    if data['macd'].iloc[-1] > data['macdsignal'].iloc[-1] and data['rsi'].iloc[-1] < 30 and predicted_price > data['close'].iloc[-1]:
-        # Place buy order
-        client.Order.Order_new(side="Buy", symbol="BTCUSD", order_type="Market", qty=1, time_in_force="GoodTillCancel", leverage=leverage)
-        print("Buy order placed!")
-    
-    # Check for sell signal
-    elif data['macd'].iloc[-1] < data['macdsignal'].iloc[-1] and data['rsi'].iloc[-1] > 70 and predicted_price < data['close'].iloc[-1]:
-        # Place sell order
-        client.Order.Order_new(side="Sell", symbol="BTCUSD", order_type="Market", qty=1, time_in_force="GoodTillCancel", leverage=leverage)
-        print("Sell order placed!")
-    
-    # Wait before checking for new signals
-    time.sleep(60)
+            # Get account balance in USDT
+            account_balance = get_account_balance()
+
+            # Calculate the trade amount in USDT based on available balance and risk percentage
+            risk_amount = (account_balance * risk_percentage) / 100
+            trade_amount = min(risk_amount, account_balance)  # Limit trade amount to available balance
+
+            # Print trading signal and trade amount
+            print(f"Signal: {signal}, Trade Amount (USDT): {trade_amount:.2f}")
+
+            # Execute the trade
+            if signal == 'BUY':
+                place_market_order(symbol, 'buy', trade_amount, leverage)
+            elif signal == 'SELL':
+                place_market_order(symbol, 'sell', trade_amount, leverage)
+
+        # Add a sleep interval to control the trading frequency (e.g., sleep for 1 minute)
+        time.sleep(60)
+
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")

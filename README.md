@@ -1,57 +1,65 @@
-# BybitAI 🤖 - Automated Cryptocurrency Trading with LSTM Model (Linux 20.04)
+# BybitAI - Automated Trading Bot with Machine Learning
 
-Welcome to BybitAI 🤖, your very own automated cryptocurrency trading bot powered by an LSTM model! With this setup running smoothly on your Linux 20.04 VPS, you're about to embark on an exciting journey into the world of crypto trading. Let's dive in:
+BybitAI is an automated trading bot that leverages machine learning to make real-time trading decisions on the Bybit derivatives exchange. The bot uses historical market data to generate an AI indicator and makes trading decisions based on the AI indicator and risk management settings.
 
-## What is BybitAI 🤖?
-
-BybitAI 🤖 is an intelligent trading bot designed to handle cryptocurrency trading on the Bybit exchange automatically. Powered by LSTM models and advanced technical indicators, it makes informed trading decisions on your behalf, so you can sit back and enjoy the ride!
+**Note:** This trading bot is for educational and informational purposes only. Use it at your own risk and do not use it with real funds until you thoroughly understand its operation and have tested it in a simulated environment.
 
 ## Getting Started
 
-To get started with BybitAI 🤖, follow these simple steps:
+To run the BybitAI trading bot on your local machine or VPS, follow these steps:
 
-1. **Set Up Your Linux 20.04 VPS**: Don't have your Linux VPS ready yet? No worries! We'll guide you through the setup process.
-
-2. **Clone the Repository**: Clone the BybitAI 🤖 repository to your Linux VPS using this command:
+1. Clone the repository:
    ```bash
-   git clone https://github.com/your_username/BybitAI.git
+   git clone https://github.com/0xRichy/BybitAI.git
    ```
 
-3. **Install Dependencies**: Move into the project directory and install all the required dependencies:
+2. Install required dependencies:
    ```bash
-   cd BybitAI
-   pip install -r requirements.txt
+   pip3 install ccxt numpy scikit-learn
    ```
 
-4. **API Credentials**: Grab your Bybit API key and secret from your account dashboard. Once you have them, insert these credentials into the BybitAI.py code to enable trading.
+3. Update API Credentials:
+   - Open `BybitAI.py` using a text editor.
+   - Replace `'YOUR_API_KEY'` and `'YOUR_SECRET_KEY'` with your Bybit API credentials.
 
-## How Does BybitAI 🤖 Work?
+4. Run the trading bot:
+   ```bash
+   python3 BybitAI.py
+   ```
 
-BybitAI 🤖 employs a sophisticated trading strategy that combines the power of LSTM models with advanced technical indicators. Here's a sneak peek at how it works:
+**Important:** Before running the bot with real funds, thoroughly test it in a simulated environment and ensure proper risk management strategies are in place.
 
-1. **Collecting Market Data**: BybitAI 🤖 fetches historical price data for the BTCUSD trading pair from Bybit, using a 1-minute interval for precise analysis.
+## Functionality
 
-2. **Indicator Insights**: The bot calculates crucial technical indicators like MACD, RSI, and Bollinger Bands based on the historical price data.
+The BybitAI trading bot performs the following actions:
 
-3. **Data Preparation**: To feed the LSTM model, the price data undergoes skillful preprocessing and normalization. BybitAI 🤖 creates sequences of 60 previous data points as inputs for the model.
+- Fetches real-time market data from Bybit API.
+- Generates an AI indicator based on historical data (currently a simple moving average).
+- Creates a machine learning dataset for training a Random Forest Classifier.
+- Makes trading decisions based on the AI indicator and risk management settings.
+- Places market orders (BUY/SELL) on the BTC/USDT perpetual contract with the specified leverage.
 
-4. **LSTM Training**: The LSTM model undergoes training using the prepared data to predict future price movements with remarkable accuracy.
+## Configuration
 
-5. **Smart Trading Decisions**: Based on the indicators and LSTM predictions, BybitAI 🤖 identifies optimal buy and sell signals for potential trades.
+You can customize the bot's behavior by modifying the following variables in `BybitAI.py`:
 
-6. **It's Trading Time**: When promising signals arise, the bot executes market orders on Bybit with a quantity of 1 BTC and the leverage you specified.
+- `bybit_api_key`: Replace with your Bybit API key.
+- `bybit_secret_key`: Replace with your Bybit secret key.
+- `symbol`: Trading pair symbol (default: 'BTC/USDT').
+- `timeframe`: Timeframe for real-time streaming (default: '1m').
+- `window_size`: Number of data points used for AI indicator and machine learning dataset (default: 10).
+- `leverage`: Leverage for your trades (default: 10).
+- `risk_percentage`: Desired risk percentage for each trade (default: 2).
 
-## Running BybitAI 🤖
+## Disclaimer
 
-Excited to start trading with BybitAI 🤖? Run the bot's Python script using this command:
-```bash
-python BybitAI.py
+Trading cryptocurrency involves risks, and this trading bot may not guarantee profits. It is crucial to understand the risks associated with trading and only invest what you can afford to lose. The authors of this project are not responsible for any financial losses incurred by using this trading bot.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 ```
 
-Remember, BybitAI 🤖 is an educational tool and a starting point for your trading journey. Always implement risk management measures and thoroughly test the strategy with historical data before considering live trading.
+Please replace `'YOUR_API_KEY'` and `'YOUR_SECRET_KEY'` in `BybitAI.py` with your actual Bybit API credentials before pushing the changes to your GitHub repository.
 
-## Risk Warning
-
-Trading cryptocurrencies carries inherent risks. Trade responsibly and be mindful of potential losses before making any trading decisions.
-
-May BybitAI 🤖 bring you profitable trades and memorable experiences on your Linux 20.04 VPS! 🚀🐧
+Feel free to further customize the README to provide additional information, such as the trading strategy employed, performance metrics, and other relevant details about your project. A clear and informative README helps users understand your project and encourages contributions and collaboration.

@@ -5,14 +5,15 @@ import time
 import logging
 from telegram import Bot, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+import os  # for reading environment variables
 
-# Replace these with your Bybit API credentials
-bybit_api_key = 'YOUR_API_KEY'
-bybit_secret_key = 'YOUR_SECRET_KEY'
+# Get Bybit API credentials from environment variables
+bybit_api_key = os.getenv('BYBIT_API_KEY')
+bybit_secret_key = os.getenv('BYBIT_SECRET_KEY')
 
-# Replace this with your Telegram Bot API token and chat_id
-telegram_token = 'YOUR_TELEGRAM_BOT_TOKEN'
-telegram_chat_id = 'YOUR_TELEGRAM_CHAT_ID'
+# Get Telegram Bot API token and chat_id from environment variables
+telegram_token = os.getenv('TELEGRAM_BOT_TOKEN')
+telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID')
 
 # Initialize the Bybit API client for derivatives trading
 bybit_exchange = ccxt.bybit({'apiKey': bybit_api_key, 'secret': bybit_secret_key, 'options': {'defaultType': 'future'}})
@@ -34,15 +35,23 @@ class DataFetcher:
     def fetch_real_time_data(self, symbol, timeframe):
         try:
             ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=1)
+            logger.info(f"Successfully fetched data for {symbol}")
             return np.array([candle[4] for candle in ohlcv])
+        except ccxt.NetworkError as e:
+            logger.error(f"Network error while fetching data: {e}")
+            return None
+        except ccxt.ExchangeError as e:
+            logger.error(f"Exchange error while fetching data: {e}")
+            return None
         except Exception as e:
-            logger.error(f"Error fetching data: {e}")
+            logger.error(f"Unexpected error while fetching data: {e}")
             return None
 
 class IndicatorGenerator:
     def generate_ai_indicator(self, data):
         ema_period = 12
         ema = np.mean(data[-ema_period:])
+        logger.info(f"AI indicator generated: {ema}")
         return ema
 
 class MachineLearningModel:
@@ -59,9 +68,12 @@ class MachineLearningModel:
 
     def train(self, X, y):
         self.classifier.fit(X, y)
+        logger.info("Classifier trained successfully")
 
     def predict(self, data):
-        return self.classifier.predict([data])[0]
+        prediction = self.classifier.predict([data])[0]
+        logger.info(f"Prediction made: {prediction}")
+        return prediction
 
 class OrderPlacer:
     def __init__(self, exchange):
@@ -79,16 +91,29 @@ class OrderPlacer:
             logger.info(f"Trade Details: Price: {trade_price}, Quantity: {trade_quantity}, Side: {trade_side}, Type: {trade_type}")
 
             return order
+        except ccxt.NetworkError as e:
+            logger.error(f"Network error while placing order: {e}")
+            return None
+        except ccxt.ExchangeError as e:
+            logger.error(f"Exchange error while placing order: {e}")
+            return None
         except Exception as e:
-            logger.error(f"Error placing order: {e}")
+            logger.error(f"Unexpected error while placing order: {e}")
             return None
 
     def get_account_balance(self):
         try:
             balance = self.exchange.fetch_balance()
+            logger.info(f"Account balance fetched: {balance['USDT']['free']}")
             return balance['USDT']['free']
+        except ccxt.NetworkError as e:
+            logger.error(f"Network error while fetching account balance: {e}")
+            return 0.0
+        except ccxt.ExchangeError as e:
+            logger.error(f"Exchange error while fetching account balance: {e}")
+            return 0.0
         except Exception as e:
-            logger.error(f"Error fetching account balance: {e}")
+            logger.error(f"Unexpected error while fetching account balance: {e}")
             return 0.0
 
 def main():

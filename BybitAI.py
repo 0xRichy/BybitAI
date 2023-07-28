@@ -2,13 +2,30 @@ import ccxt
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 import time
+import logging
+from telegram import Bot, Update
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # Replace these with your Bybit API credentials
 bybit_api_key = 'YOUR_API_KEY'
 bybit_secret_key = 'YOUR_SECRET_KEY'
 
+# Replace this with your Telegram Bot API token and chat_id
+telegram_token = 'YOUR_TELEGRAM_BOT_TOKEN'
+telegram_chat_id = 'YOUR_TELEGRAM_CHAT_ID'
+
 # Initialize the Bybit API client for derivatives trading
 bybit_exchange = ccxt.bybit({'apiKey': bybit_api_key, 'secret': bybit_secret_key, 'options': {'defaultType': 'future'}})
+
+# Initialize the Telegram Bot
+telegram_bot = Bot(token=telegram_token)
+
+# Set up logging to Telegram
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
+logger.addHandler(logging.StreamHandler(telegram_bot.send_message))
 
 # Define function to fetch real-time market data
 def fetch_real_time_data(symbol, timeframe):
@@ -16,14 +33,16 @@ def fetch_real_time_data(symbol, timeframe):
         ohlcv = bybit_exchange.fetch_ohlcv(symbol, timeframe, limit=1)
         return np.array([candle[4] for candle in ohlcv])
     except Exception as e:
-        print(f"Error fetching data: {e}")
+        logger.error(f"Error fetching data: {e}")
         return None
 
 # Define function to generate AI indicator
 def generate_ai_indicator(data):
     # Your AI indicator generation code goes here
-    # For illustration, let's assume a simple moving average
-    return np.mean(data)
+    # For example, let's calculate the Exponential Moving Average (EMA)
+    ema_period = 12
+    ema = np.mean(data[-ema_period:])
+    return ema
 
 # Define function to create machine learning dataset
 def create_dataset(data, window_size):
@@ -34,13 +53,30 @@ def create_dataset(data, window_size):
         y.append(1 if data[i+window_size] > generate_ai_indicator(window) else -1)
     return np.array(X), np.array(y)
 
-# Define function to place a market order
+# Define function to create machine learning dataset
+def create_dataset(data, window_size):
+    X, y = [], []
+    for i in range(len(data) - window_size - 1):
+        window = data[i:i+window_size]
+        X.append(window)
+        y.append(1 if data[i+window_size] > generate_ai_indicator(window) else -1)
+    return np.array(X), np.array(y)
+
+# Define function to place a market order with detailed logging
 def place_market_order(symbol, side, quantity, leverage):
     try:
         order = bybit_exchange.create_market_order(symbol, side, quantity, {'leverage': leverage})
+
+        # Log trade details
+        trade_price = order['price']
+        trade_quantity = order['amount']
+        trade_side = order['side']
+        trade_type = order['type']
+        logger.info(f"Trade Details: Price: {trade_price}, Quantity: {trade_quantity}, Side: {trade_side}, Type: {trade_type}")
+
         return order
     except Exception as e:
-        print(f"Error placing order: {e}")
+        logger.error(f"Error placing order: {e}")
         return None
 
 # Define function to get account balance in USDT
@@ -49,7 +85,7 @@ def get_account_balance():
         balance = bybit_exchange.fetch_balance()
         return balance['USDT']['free']
     except Exception as e:
-        print(f"Error fetching account balance: {e}")
+        logger.error(f"Error fetching account balance: {e}")
         return 0.0
 
 # Fetch real-time data for a specific trading pair and timeframe
@@ -58,7 +94,7 @@ timeframe = '1m'  # Use a lower timeframe for real-time streaming, '1m' is just 
 window_size = 10
 
 # Define the leverage for your trades
-leverage = 10  # Replace with your desired leverage
+leverage = 50  # Replace with your desired leverage
 
 # Define the desired risk percentage (e.g., 2%)
 risk_percentage = 2
@@ -96,8 +132,8 @@ while True:
             risk_amount = (account_balance * risk_percentage) / 100
             trade_amount = min(risk_amount, account_balance)  # Limit trade amount to available balance
 
-            # Print trading signal and trade amount
-            print(f"Signal: {signal}, Trade Amount (USDT): {trade_amount:.2f}")
+            # Log trading signal and trade amount
+            logger.info(f"Signal: {signal}, Trade Amount (USDT): {trade_amount:.2f}")
 
             # Execute the trade
             if signal == 'BUY':
@@ -109,4 +145,4 @@ while True:
         time.sleep(60)
 
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
